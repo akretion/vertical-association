@@ -65,8 +65,7 @@ class AccountMoveLine(models.Model):
         self._constrain_single_membership_line()
         to_create, to_update, to_disable = self._filter_membership_lines()
         to_create._create_membership_lines()
-        self._update_membership_lines(to_update)
-        self._disable_membership_lines(to_disable)
+        self._remove_membership_lines(to_disable)
 
     def _filter_membership_lines(self):
         MoveLine = self.env["account.move.line"]
@@ -98,30 +97,15 @@ class AccountMoveLine(models.Model):
         return self.env["membership.membership_line"].create(vals_list)
 
     @api.model
-    def _update_membership_lines(self, membership_lines):
-        """
-        Rare case: a membership line was already created and the invoice line is
-        updated. Let's update the membership line (product, dates, partner, ...)
-        """
-        for membership_line in membership_lines:
-            invoice_line = membership_lines.account_invoice_line_id
-            vals = invoice_line._prepare_membership_line_vals()
-            membership_line.write(vals)
-
-    @api.model
-    def _disable_membership_lines(self, membership_lines):
-        """
-        Edge cases: a membership line was created before from the account move line.
-        Now, the product has changed and it is no longer a membership product.
-        """
+    def _remove_membership_lines(self, membership_lines):
+        """Edge case: the product is changed and is no longer a membership product"""
         membership_lines.with_context(allow_membership_line_unlink=True).unlink()
 
     def _prepare_membership_line_vals(self):
         self.ensure_one()
         invoice = self.move_id
-        date_from, date_to = self._prepare_membership_line_dates()
+        date_from, date_to = self._get_membership_dates()
         return {
-            "partner_id": invoice.partner_id.id,
             "membership_id": self.product_id.id,
             "member_price": self.price_unit,
             "date": invoice.invoice_date or fields.Date.context_today(self),
@@ -130,7 +114,7 @@ class AccountMoveLine(models.Model):
             "account_invoice_line_id": self.id,
         }
 
-    def _prepare_membership_line_dates(self):
+    def _get_membership_dates(self):
         """Extension hook (module membership_variable_period)"""
         self.ensure_one()
         date_from = self.product_id.membership_date_from

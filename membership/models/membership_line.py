@@ -17,23 +17,37 @@ class MembershipLine(models.Model):
     _description = "Membership Line"
 
     partner_id = fields.Many2one(
-        "res.partner", string="Partner", ondelete="restrict", index=True
+        comodel_name="res.partner",
+        compute="_compute_partner_id",
+        store=True,
+        ondelete="restrict",
+        index=True,
     )
     membership_id = fields.Many2one(
-        "product.product", string="Membership", required=True
+        string="Membership",
+        comodel_name="product.product",
+        related="account_invoice_line_id.product_id",
+        store=True,
+        readonly=False,
+        required=True,
+        domain=[("membership", "=", True), ("type", "=", "service")],
     )
     category_id = fields.Many2one(
+        string="Category",
         comodel_name="membership.membership_category",
         related="membership_id.membership_category_id",
     )
-    date_from = fields.Date(string="From", readonly=False)
-    date_to = fields.Date(string="To", readonly=False)
+    date_from = fields.Date(string="From", required=True)
+    date_to = fields.Date(string="To", required=True)
     date_cancel = fields.Date(string="Cancel date")
     date = fields.Date(
-        string="Join Date", help="Date on which member has joined the membership"
+        string="Join Date",
+        required=True,
+        default=fields.Date.context_today,
+        help="Date on which member has joined the membership",
     )
     member_price = fields.Float(
-        string="Membership Fee",
+        string="Fee",
         min_display_digits="Product Price",
         compute="_compute_member_price",
         readonly=False,
@@ -42,36 +56,36 @@ class MembershipLine(models.Model):
         help="Amount for the membership",
     )
     account_invoice_line_id = fields.Many2one(
-        "account.move.line",
         string="Account Invoice line",
+        comodle_name="account.move.line",
         readonly=True,
         ondelete="cascade",
     )
     account_invoice_id = fields.Many2one(
-        "account.move",
-        related="account_invoice_line_id.move_id",
         string="Invoice",
+        comodel_name="account.move",
+        related="account_invoice_line_id.move_id",
         readonly=True,
     )
     company_id = fields.Many2one(
-        "res.company",
+        comodel_name="res.company",
         related="account_invoice_line_id.move_id.company_id",
-        string="Company",
         readonly=True,
         store=True,
     )
+    active = fields.Boolean()
     state = fields.Selection(
+        string="Status",
         selection=[
             ("none", "Non Member"),
-            ("canceled", "Cancelled Member"),
-            ("old", "Old Member"),
-            ("waiting", "Waiting Member"),
-            ("invoiced", "Invoiced Member"),
-            ("free", "Free Member"),
-            ("paid", "Paid Member"),
+            ("canceled", "Cancelled"),
+            ("old", "Old"),
+            ("waiting", "Waiting"),
+            ("invoiced", "Invoiced"),
+            ("free", "Free"),
+            ("paid", "Paid"),
         ],
         compute="_compute_state",
-        string="Membership Status",
         store=True,
         readonly=False,
         help="It indicates the membership status.\n"
@@ -89,10 +103,22 @@ class MembershipLine(models.Model):
         "Error ! Ending Date cannot be set before Beginning Date.",
     )
 
-    @api.depends("membership_id")
+    @api.depends("account_invoice_id.partner_id")
+    def _compute_partner_id(self):
+        for line in self:
+            line.partner_id = line._get_membership_partner()
+
+    def _get_membership_partner(self):
+        """Extension hook (module membership_delegate_partner)"""
+        self.ensure_one()
+        return self.account_invoice_id.partner_id
+
+    @api.depends("account_invoice_line_id.price_unit", "membership_id")
     def _compute_member_price(self):
-        for partner in self:
-            partner.member_price = partner.membership_id.list_price
+        for line in self:
+            line.member_price = (
+                line.account_invoice_line_id.price_unit or line.membership_id.list_price
+            )
 
     @api.depends(
         "account_invoice_id.state",

@@ -9,22 +9,9 @@ from odoo import fields, models
 class AccountMove(models.Model):
     _inherit = "account.move"
 
-    def write(self, vals):
-        # OVERRIDE to write the partner on the membership lines.
-        res = super().write(vals)
-        if "partner_id" in vals:
-            lines = self.invoice_line_ids.membership_line_ids
-            if lines:
-                lines.write({"partner_id": vals["partner_id"]})
-        return res
-
     def button_draft(self):
-        # OVERRIDE to update the cancel date.
         res = super().button_draft()
-        for move in self.filtered(lambda x: x.move_type == "out_invoice"):
-            lines = move.invoice_line_ids.membership_line_ids
-            if lines:
-                lines.write({"date_cancel": False, "state": "waiting"})
+        self.invoice_line_ids.membership_line_ids.date_cancel = False
         return res
 
     def button_cancel(self):

@@ -10,14 +10,20 @@
     "website": "https://github.com/OCA/vertical-association",
     "depends": ["account"],
     "data": [
-        "security/membership_security.xml",
-        "security/ir.model.access.csv",
-        "wizard/membership_invoice_views.xml",
+        # data
         "data/membership_data.xml",
         "data/membership_category_data.xml",
+        # security
+        "security/membership_security.xml",
+        "security/ir.model.access.csv",
+        # wizard
+        "wizard/membership_invoice_views.xml",
+        # views
+        "views/membership_category_view.xml",
+        "views/membership_line_views.xml",
         "views/product_template_views.xml",
         "views/res_partner_views.xml",
-        "views/membership_category_view.xml",
+        # report
         "report/report_membership_views.xml",
     ],
     "demo": [

@@ -16,7 +16,7 @@ class AccountMoveLine(models.Model):
     def _get_variable_period_product_membership_types(self):
         return ["variable"]
 
-    def _prepare_membership_line_dates(self):
+    def _get_membership_dates(self):
         """
         For the lines configured with a proper product, apply the logics of flexible
         period when computing `date_to`
@@ -24,7 +24,7 @@ class AccountMoveLine(models.Model):
         product_tmpl = self.product_id.product_tmpl_id
         membership_types = self._get_variable_period_product_membership_types()
         if product_tmpl.membership_type not in membership_types:
-            return super()._prepare_membership_line_dates()
+            return super()._get_membership_dates()
         qty = int(math.ceil(self.quantity))
         date_from = self.move_id.invoice_date or fields.Date.context_today(self)
         date_to = product_tmpl._get_next_date(date_from, qty=qty)
