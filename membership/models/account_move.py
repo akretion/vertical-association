@@ -3,11 +3,20 @@
 # Copyright 2019-2020 Onestein - Andrea Stirpe
 
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
+
+    is_membership_invoice = fields.Boolean(compute="_compute_is_membership_invoice")
+
+    @api.depends("move_type", "line_ids.product_id.membership")
+    def _compute_is_membership_invoice(self):
+        for move in self:
+            move.is_membership_invoice = move.move_type == "out_invoice" and any(
+                move.line_ids.product_id.mapped("membership")
+            )
 
     def button_draft(self):
         res = super().button_draft()
